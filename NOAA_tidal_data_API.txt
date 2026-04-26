@@ -1,0 +1,44 @@
+## import commands 
+import requests 
+import pandas as pd 
+import time 
+
+# station parameters
+station = '8656483'  # Beaufort, NC 
+product = 'hourly_height' 
+datum = 'MLLW' 
+units = 'meters' 
+time_zone = 'GMT' 
+
+ 
+# Initializing the data frame
+years = range(1984, 2027) 
+all_data = [] 
+
+ 
+# For loop to get all the data from NOAA
+for year in years: 
+    url = ( 
+        f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?" 
+        f"begin_date={year}0101&end_date={year}1231" 
+        f"&station={station}&product={product}&datum={datum}" 
+        f"&units={units}&time_zone={time_zone}&application=web_services&format=json" 
+    ) 
+    response = requests.get(url) 
+    data = response.json() 
+    if 'data' in data: 
+        df = pd.DataFrame(data['data']) 
+        df['year'] = year 
+        all_data.append(df) 
+        print(f"Downloaded {year}") 
+    else: 
+        print(f"No data for {year}: {data.get('error', 'unknown error')}") 
+    time.sleep(1)  # be polite to the API 
+
+tides = pd.concat(all_data, ignore_index=True) 
+tides.rename(columns={'t': 'datetime', 'v': 'water_level_m'}, inplace=True) 
+tides['datetime'] = pd.to_datetime(tides['datetime']) 
+tides['water_level_m'] = pd.to_numeric(tides['water_level_m'], errors='coerce') 
+
+tides.to_csv('beaufort_tides_1984_2026.csv', index=False) 
+print("Done — saved to beaufort_tides_1984_2026.csv") 
