@@ -15,13 +15,17 @@ print(Beaufort_tides.head())
 SharkIsland['datetime'] = pd.to_datetime(SharkIsland['date'], utc=True)
 Beaufort_tides['datetime'] = pd.to_datetime(Beaufort_tides['datetime'], utc=True)
 
-# Sort for merge
-SharkIsland = SharkIsland.sort_values('datetime').reset_index(drop=True)
+# Drop rows where datetime couldn't be parsed
+SharkIsland_clean = SharkIsland.dropna(subset=['datetime']).copy()
+print(f"Rows after dropping nulls: {len(SharkIsland_clean)}")
+
+# Sort for merge_asof
+SharkIsland_clean = SharkIsland_clean.sort_values('datetime').reset_index(drop=True)
 Beaufort_tides = Beaufort_tides.sort_values('datetime').reset_index(drop=True)
 
 # Nearest hour merge — same as before but on geodataframe
 merged = pd.merge_asof(
-    SharkIsland,
+    SharkIsland_clean,
     Beaufort_tides[['datetime', 'water_level_m']],
     on='datetime',
     direction='nearest',
@@ -49,6 +53,6 @@ def classify_tide(wl):
 merged['tidal_stage'] = merged['water_level_m'].apply(classify_tide)
 
 # Export back to shapefile for ArcGIS Pro
-merged.to_file('SharkIsland_Extents_TidalMerged.shp')
+merged.to_file('SharkIsland_Extents_TidalMerged.gpkg', driver='GPKG')
 print(f"Exported {len(merged)} features with tidal data attached")
 print(merged[['date', 'area_m2', 'water_level_m', 'tidal_stage']].head(10))
